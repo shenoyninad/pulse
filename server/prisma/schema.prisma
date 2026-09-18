@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Collection {
+  id        String         @id @default(cuid())
+  name      String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  requests  SavedRequest[]
+}
+
+model SavedRequest {
+  id           String            @id @default(cuid())
+  name         String
+  method       String            @default("GET")
+  url          String
+  headers      Json              @default("{}")
+  body         String?
+  collection   Collection?       @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+  collectionId String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  executions   ExecutionResult[]
+  scenarios    Scenario[]
+}
+
+model ExecutionResult {
+  id              String       @id @default(cuid())
+  request         SavedRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId       String
+  scenario        Scenario?    @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  scenarioId      String?
+  status          Int
+  responseHeaders Json         @default("{}")
+  responseBody    String       @default("")
+  durationMs      Int
+  executedAt      DateTime     @default(now())
+}
+
+// A scenario overrides parts of its base request to probe an edge case.
+// url/headers are full replacements when set, inherited when null.
+// bodyMode: "inherit" uses the base request's body, "override" uses this row's body (null = send no body).
+model Scenario {
+  id          String            @id @default(cuid())
+  request     SavedRequest      @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId   String
+  name        String
+  description String            @default("")
+  url         String?
+  headers     Json?
+  body        String?
+  bodyMode    String            @default("inherit")
+  expectation String            @default("")
+  createdAt   DateTime          @default(now())
+  executions  ExecutionResult[]
+}
